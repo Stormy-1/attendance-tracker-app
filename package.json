@@ -16,6 +16,7 @@
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.3.8",
     "react-router-dom": "^6.20.1",
+    "recharts": "^2.15.4",
     "tesseract.js": "^5.1.1"
   },
   "devDependencies": {

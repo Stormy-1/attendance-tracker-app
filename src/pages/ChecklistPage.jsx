@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DayPicker } from 'react-day-picker';
-import { format, isSameDay, parseISO } from 'date-fns';
+// Added new functions from date-fns for robust date comparison
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
 import 'react-day-picker/dist/style.css';
 
 function ChecklistPage() {
@@ -11,17 +12,13 @@ function ChecklistPage() {
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load setup data and attendance logs on component mount
   useEffect(() => {
     const loadData = () => {
       try {
-        // Load setup data
         const savedSetupData = localStorage.getItem('attendanceSetup');
         if (savedSetupData) {
           setSetupData(JSON.parse(savedSetupData));
         }
-
-        // Load attendance logs
         const savedAttendanceLogs = localStorage.getItem('attendanceLogs');
         if (savedAttendanceLogs) {
           setAttendanceLogs(JSON.parse(savedAttendanceLogs));
@@ -32,42 +29,48 @@ function ChecklistPage() {
         setIsLoading(false);
       }
     };
-
     loadData();
   }, []);
 
-  // Get day of week for selected date
   const getDayOfWeek = (date) => {
     return format(date, 'EEEE');
   };
 
-  // Check if selected date is a holiday
+  // NEW: Helper function to check if the date is within the semester
+  const isWithinSemester = (date) => {
+    if (!setupData?.semesterData?.startDate || !setupData?.semesterData?.endDate) {
+      return false; // Cannot be within semester if dates aren't set
+    }
+    // Use parseISO to correctly handle date strings from localStorage
+    const start = parseISO(setupData.semesterData.startDate);
+    const end = parseISO(setupData.semesterData.endDate);
+    // Use isWithinInterval for a reliable, timezone-safe comparison
+    return isWithinInterval(date, { start: startOfDay(start), end: endOfDay(end) });
+  };
+
   const isHoliday = (date) => {
     if (!setupData?.semesterData?.holidays) return false;
     const dateString = format(date, 'yyyy-MM-dd');
     return setupData.semesterData.holidays.includes(dateString);
   };
 
-  // Check if selected date is a weekly off-day
   const isWeeklyOffDay = (date) => {
     if (!setupData?.semesterData?.weeklyOffDays) return false;
     const dayOfWeek = getDayOfWeek(date);
     return setupData.semesterData.weeklyOffDays.includes(dayOfWeek);
   };
 
-  // Check if selected date is a class day
+  // UPDATED: isClassDay now also checks if the date is within the semester
   const isClassDay = (date) => {
-    return !isHoliday(date) && !isWeeklyOffDay(date);
+    return isWithinSemester(date) && !isHoliday(date) && !isWeeklyOffDay(date);
   };
 
-  // Get subjects for the selected day
   const getSubjectsForDay = (date) => {
     if (!setupData?.schedules) return [];
     const dayOfWeek = getDayOfWeek(date);
     return setupData.schedules.filter(schedule => schedule.day === dayOfWeek);
   };
 
-  // Get attendance status for a subject on a specific date
   const getAttendanceStatus = (date, subject) => {
     const dateString = format(date, 'yyyy-MM-dd');
     const log = attendanceLogs.find(log => 
@@ -76,7 +79,6 @@ function ChecklistPage() {
     return log ? log.attended : false;
   };
 
-  // Update attendance status
   const updateAttendance = (date, subject, attended) => {
     const dateString = format(date, 'yyyy-MM-dd');
     const newLog = { date: dateString, subject, attended };
@@ -86,21 +88,17 @@ function ChecklistPage() {
         !(log.date === dateString && log.subject === subject)
       );
       const updated = [...filtered, newLog];
-      
-      // Save to localStorage
       localStorage.setItem('attendanceLogs', JSON.stringify(updated));
       return updated;
     });
   };
 
-  // Handle date selection
   const handleDateSelect = (date) => {
     if (date) {
       setSelectedDate(date);
     }
   };
 
-  // Get attendance summary for the selected date
   const getAttendanceSummary = (date) => {
     const subjects = getSubjectsForDay(date);
     if (subjects.length === 0) return { total: 0, attended: 0, percentage: 0 };
@@ -114,6 +112,20 @@ function ChecklistPage() {
       attended,
       percentage: Math.round((attended / subjects.length) * 100)
     };
+  };
+
+  // NEW: Helper to get the correct "no class" reason
+  const getNoClassReason = (date) => {
+    if (!isWithinSemester(date)) {
+        return 'Date is outside of the current semester.';
+    }
+    if (isHoliday(date)) {
+        return 'This date is marked as a holiday.';
+    }
+    if (isWeeklyOffDay(date)) {
+        return 'This is a weekly off-day.';
+    }
+    return 'No subjects scheduled for this day.'; // Fallback
   };
 
   if (isLoading) {
@@ -146,13 +158,11 @@ function ChecklistPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Attendance Checklist</h1>
         <p className="text-gray-600">Mark your attendance for each subject</p>
       </div>
 
-      {/* Date Selection */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Date</h2>
         <div className="flex flex-col lg:flex-row gap-6">
@@ -162,31 +172,16 @@ function ChecklistPage() {
               selected={selectedDate}
               onSelect={handleDateSelect}
               className="border border-gray-300 rounded-lg p-4"
-              styles={{
-                day: {
-                  borderRadius: '6px',
-                },
-                day_selected: {
-                  backgroundColor: '#3B82F6',
-                  color: 'white',
-                },
-                day_today: {
-                  fontWeight: 'bold',
-                  color: '#3B82F6',
-                },
-              }}
             />
           </div>
-          
           <div className="flex-1">
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 {format(selectedDate, 'EEEE, MMMM do, yyyy')}
               </h3>
               <p className="text-sm text-gray-600 mb-4">
-                {isClassDayToday ? `${subjects.length} subjects scheduled` : 'No classes today'}
+                {isClassDayToday ? `${subjects.length} subjects scheduled` : getNoClassReason(selectedDate)}
               </p>
-              
               {isClassDayToday && (
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div className="text-center">
@@ -208,13 +203,11 @@ function ChecklistPage() {
         </div>
       </div>
 
-      {/* Main Content */}
       {isClassDayToday ? (
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
             Subjects for {dayOfWeek}
           </h2>
-          
           {subjects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {subjects.map((schedule, index) => {
@@ -267,15 +260,13 @@ function ChecklistPage() {
             <div className="text-6xl text-gray-400 mb-4">📅</div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">No Classes Today</h2>
             <p className="text-gray-600 mb-6">
-              {isHoliday(selectedDate) 
-                ? 'This date is marked as a holiday.' 
-                : 'This is a weekly off-day.'}
+              {/* UPDATED: Use the helper function for a dynamic message */}
+              {getNoClassReason(selectedDate)}
             </p>
           </div>
         </div>
       )}
 
-      {/* Navigation Button */}
       <div className="text-center">
         <button
           onClick={() => navigate('/dashboard')}
