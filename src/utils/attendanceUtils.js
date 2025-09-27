@@ -137,12 +137,12 @@ export default function calculateAttendanceStats(setupData, attendanceLogs) {
     console.log(`Subject logs:`, subjectLogs);
     console.log(`Classes attended: ${classesAttended}`);
 
-    // Calculate current percentage (semester-based)
+    // Calculate current percentage
     let currentPercentage = 0;
-    if (totalClassesInSemester > 0) {
-      currentPercentage = (classesAttended / totalClassesInSemester) * 100;
+    if (classesHeldSoFar > 0) {
+      currentPercentage = (classesAttended / classesHeldSoFar) * 100;
     } else {
-      currentPercentage = 100; // No classes scheduled
+      currentPercentage = 100; // No classes held yet
     }
 
     // Calculate remaining classes
