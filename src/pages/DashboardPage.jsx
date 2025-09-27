@@ -164,7 +164,7 @@ function DashboardPage() {
                   {subjectStats.currentPercentage.toFixed(1)}%
                 </div>
                 <div className="text-sm text-gray-600">
-                  {subjectStats.classesAttended} of {subjectStats.classesHeldSoFar} classes attended
+                  {subjectStats.classesAttended} of {subjectStats.totalClassesInSemester} classes attended
                 </div>
               </div>
 

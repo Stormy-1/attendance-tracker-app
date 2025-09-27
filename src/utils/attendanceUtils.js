@@ -110,19 +110,39 @@ export default function calculateAttendanceStats(setupData, attendanceLogs) {
 
     console.log(`Classes held so far: ${classesHeldSoFar}`);
 
-    // Count attended classes from logs
+    // Count attended classes from logs - with detailed validation
     const subjectLogs = (attendanceLogs || []).filter(log => log.subject === subject);
-    const classesAttended = subjectLogs.filter(log => log.attended === true).length;
+    const attendedLogs = subjectLogs.filter(log => log.attended === true);
+    
+    console.log(`Subject logs for ${subject}:`, subjectLogs);
+    console.log(`Attended logs:`, attendedLogs);
+    
+    // Check for duplicate or future attendance logs
+    const validAttendedLogs = attendedLogs.filter(log => {
+      const logDate = parseISO(log.date);
+      const isValid = classDates.some(classDate => isSameDay(classDate, logDate)) && 
+                     (isBefore(logDate, today) || isSameDay(logDate, today));
+      if (!isValid) {
+        console.warn(`Invalid attendance log for ${subject} on ${log.date}: not a valid class date or future date`);
+      }
+      return isValid;
+    });
+    
+    const classesAttended = validAttendedLogs.length;
+    
+    if (attendedLogs.length !== classesAttended) {
+      console.warn(`Filtered ${attendedLogs.length - classesAttended} invalid attendance logs for ${subject}`);
+    }
     
     console.log(`Subject logs:`, subjectLogs);
     console.log(`Classes attended: ${classesAttended}`);
 
-    // Calculate current percentage
+    // Calculate current percentage (semester-based)
     let currentPercentage = 0;
-    if (classesHeldSoFar > 0) {
-      currentPercentage = (classesAttended / classesHeldSoFar) * 100;
+    if (totalClassesInSemester > 0) {
+      currentPercentage = (classesAttended / totalClassesInSemester) * 100;
     } else {
-      currentPercentage = 100; // No classes held yet
+      currentPercentage = 100; // No classes scheduled
     }
 
     // Calculate remaining classes
