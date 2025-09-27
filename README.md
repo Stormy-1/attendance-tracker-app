@@ -1,6 +1,7 @@
 # Attendance Tracker App
 
 A modern React application built with Vite, Tailwind CSS, and React Router for tracking student attendance.
+<img width="2527" height="1394" alt="Screenshot 2025-09-28 051631" src="https://github.com/user-attachments/assets/3def7584-6d76-42f5-87c9-102419cc3bf2" />
 
 ## Features
 
@@ -13,6 +14,7 @@ A modern React application built with Vite, Tailwind CSS, and React Router for t
 ## Prerequisites
 
 Before running this application, make sure you have the following installed:
+
 
 - **Node.js** (version 16 or higher)
 - **npm** (comes with Node.js)
